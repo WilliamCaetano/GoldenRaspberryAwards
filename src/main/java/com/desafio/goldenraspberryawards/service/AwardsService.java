@@ -10,8 +10,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+
+import static java.util.Objects.nonNull;
 
 @Service
 public class AwardsService {
@@ -25,35 +29,33 @@ public class AwardsService {
   public AwardsSummaryDTO findProducerAwardsSummary() {
     val movies = movieService.findAll();
     Map<String, List<Long>> producerAwards = new HashMap<>();
-    movies.stream().filter(Movie::getIsWinner).forEach(movie -> movie.getProducers().forEach(producer -> {
-      producerAwards.computeIfAbsent(producer.getName(), k -> new ArrayList<>()).add(movie.getYear());
-    }));
-    return new AwardsSummaryDTO()
-        .setMin(findIntervalBetweenTwoAwards(producerAwards, true))
-        .setMax(findIntervalBetweenTwoAwards(producerAwards, false));
+    if (nonNull(movies) && !movies.isEmpty()) {
+      movies.stream().filter(Movie::getIsWinner).forEach(movie -> movie.getProducers().forEach(producer -> {
+        producerAwards.computeIfAbsent(producer.getName(), k -> new ArrayList<>()).add(movie.getYear());
+      }));
+      val awardInterval = findIntervalBetweenTwoAwards(producerAwards);
+      return new AwardsSummaryDTO()
+          .setMin(Collections.singletonList(awardInterval.getFirst()))
+          .setMax(Collections.singletonList(awardInterval.getLast()));
+    }
+    return new AwardsSummaryDTO();
   }
 
-  private List<AwardsDTO> findIntervalBetweenTwoAwards(Map<String, List<Long>> producerAwards,
-                                                         Boolean isFasterInterval) {
-    List<AwardsDTO> awards = new ArrayList<>();
+  private LinkedList<AwardsDTO> findIntervalBetweenTwoAwards(Map<String, List<Long>> producerAwards) {
+    val awards = new LinkedList<AwardsDTO>();
     for (Map.Entry<String, List<Long>> entry : producerAwards.entrySet()) {
-      List<Long> awardsYears = entry.getValue();
-      Collections.sort(awardsYears);
+      val awardsYears = entry.getValue().stream().sorted().collect(Collectors.toList());
       if (awardsYears.size() >= 2) {
         for (int i = 0; i < awardsYears.size() - 1; i++) {
-          long firstYear = awardsYears.get(i);
-          long secondYear = awardsYears.get(i + 1);
-          long interval = secondYear - firstYear;
-          AwardsDTO award = setAwardFields(entry.getKey(), firstYear, secondYear, interval);
+          val firstYear = awardsYears.get(i);
+          val secondYear = awardsYears.get(i + 1);
+          val interval = secondYear - firstYear;
+          val award = setAwardFields(entry.getKey(), firstYear, secondYear, interval);
           awards.add(award);
         }
       }
     }
-    if (isFasterInterval) {
-      awards.sort(Comparator.comparingLong(AwardsDTO::getInterval));
-    } else {
-      awards.sort(Comparator.comparingLong(AwardsDTO::getInterval).reversed());
-    }
+    awards.sort(Comparator.comparingLong(AwardsDTO::getInterval));
     return awards;
   }
 
