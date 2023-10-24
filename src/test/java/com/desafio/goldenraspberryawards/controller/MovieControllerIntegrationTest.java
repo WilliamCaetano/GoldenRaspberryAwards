@@ -45,4 +45,32 @@ public class MovieControllerIntegrationTest {
     assertNotNull(movies);
     assertFalse(movies.isEmpty());
   }
+
+  @Test
+  public void testFindMovieById_shouldReturnCorrect() throws Exception {
+    Long movieId = 1L;
+    MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/movies/{id}", movieId))
+        .andReturn();
+
+    assertEquals(200, result.getResponse().getStatus());
+
+    Movie movie = objectMapper.readValue(
+        result.getResponse().getContentAsString(),
+        Movie.class
+    );
+
+    assertEquals("Can't Stop the Music", movie.getTitle());
+    assertEquals(Long.valueOf(1980), movie.getYear());
+    assertEquals(true, movie.getIsWinner());
+  }
+
+  @Test
+  public void testFindMovieById_shouldReturnNotFound() throws Exception {
+    Long movieId = 9999L;
+    MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/movies/{id}", movieId))
+        .andReturn();
+
+    int status = result.getResponse().getStatus();
+    assertEquals(404, status);
+  }
 }
